@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/colors.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,16 +12,18 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
+  final List<Widget> _screens = [
+    const Center(child: Text("Ventana de Inicio", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
+    const Center(child: Text("Metas", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
+    const Center(child: Text("Estadísticas", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
+    const ProfileScreen(),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: const Center(
-        child: Text(
-          "Ventana de Inicio",
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-      ),
+      body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
@@ -30,8 +33,8 @@ class _HomeScreenState extends State<HomeScreen> {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: "Inicio"),
+          BottomNavigationBarItem(icon: Icon(Icons.security), label: "Metas"),
           BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Estadísticas"),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: "Gastos"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Perfil"),
         ],
       ),

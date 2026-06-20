@@ -148,8 +148,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     setState(() => _isLoading = true);
                     try {
-                      await authService.registerWithEmail(email, password, name);
-                      if (mounted) {
+                      final result = await authService.registerWithEmail(email, password, name);
+                      if (result != null && mounted) {
                         Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -180,12 +180,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               
               Row(
                 children: [
-                  Expanded(child: Divider(color: AppColors.textSecondary.withOpacity(0.3))),
+                  Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha: 0.3))),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Text("O", style: TextStyle(color: AppColors.textSecondary)),
                   ),
-                  Expanded(child: Divider(color: AppColors.textSecondary.withOpacity(0.3))),
+                  Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha: 0.3))),
                 ],
               ),
 

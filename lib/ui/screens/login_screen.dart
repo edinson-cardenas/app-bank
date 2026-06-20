@@ -17,11 +17,19 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
     );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -67,8 +75,17 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               TextField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(hintText: "********"),
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  hintText: "********",
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: AppColors.textSecondary,
+                    ),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                ),
               ),
               
               const SizedBox(height: 12),
@@ -127,12 +144,12 @@ class _LoginScreenState extends State<LoginScreen> {
               
               Row(
                 children: [
-                  Expanded(child: Divider(color: AppColors.textSecondary.withOpacity(0.3))),
+                  Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha: 0.3))),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Text("O continúa con", style: TextStyle(color: AppColors.textSecondary)),
                   ),
-                  Expanded(child: Divider(color: AppColors.textSecondary.withOpacity(0.3))),
+                  Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha: 0.3))),
                 ],
               ),
               

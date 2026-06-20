@@ -38,6 +38,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   ];
 
   @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -84,7 +90,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 Expanded(
                                   child: OutlinedButton(
                                     onPressed: () {
-                                      // Usamos push para permitir retroceder
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -106,7 +111,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 Expanded(
                                   child: ElevatedButton(
                                     onPressed: () {
-                                      // Usamos push para permitir retroceder
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(builder: (context) => const RegisterScreen()),
@@ -134,12 +138,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 );
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary.withOpacity(0.2),
+                                backgroundColor: AppColors.primary.withValues(alpha: 0.2),
                                 foregroundColor: AppColors.primary,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
-                                  side: BorderSide(color: AppColors.primary.withOpacity(0.5)),
+                                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
                                 ),
                               ),
                               child: const Text(
@@ -190,7 +194,7 @@ class OnboardingContent extends StatelessWidget {
           height: 200,
           width: 200,
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.primary.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: const Icon(
