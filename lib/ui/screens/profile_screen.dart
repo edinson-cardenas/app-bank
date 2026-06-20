@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/theme/colors.dart';
 import '../../services/auth_service.dart';
 import 'welcome_screen.dart';
@@ -10,7 +12,11 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final user = authService.user; // Podríamos usar un StreamBuilder para datos reales
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      return const Scaffold(body: Center(child: Text("No se encontró sesión activa")));
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -35,35 +41,69 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header de Usuario
-            _buildUserHeader(context),
-            const SizedBox(height: 24),
-            
-            // Cards de Info (Miembro, Seguridad, Puntos)
-            _buildStatusCards(),
-            const SizedBox(height: 32),
-            
-            const Text(
-              "Cuenta",
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 16, fontWeight: FontWeight.w500),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text("Error al cargar datos: ${snapshot.error}"));
+          }
+
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text("No existen datos del usuario"));
+          }
+
+          final userData = snapshot.data!.data() as Map<String, dynamic>;
+          final String name = userData['name'] ?? "Usuario";
+          final String email = userData['email'] ?? "Sin correo";
+          final String initials = name.isNotEmpty ? name.substring(0, 2).toUpperCase() : "??";
+          
+          // Formatear fecha de creación si existe
+          String memberSince = "Desconocido";
+          if (userData['createdAt'] != null) {
+            Timestamp t = userData['createdAt'];
+            DateTime date = t.toDate();
+            List<String> months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+            memberSince = "${months[date.month - 1]} ${date.year}";
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header de Usuario (DATOS REALES)
+                _buildUserHeader(context, name, email, initials),
+                const SizedBox(height: 24),
+                
+                // Cards de Info (Miembro, Seguridad, Puntos)
+                _buildStatusCards(memberSince),
+                const SizedBox(height: 32),
+                
+                const Text(
+                  "Cuenta",
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 16),
+                
+                // Lista de Opciones
+                _buildProfileMenu(context, authService),
+                const SizedBox(height: 100),
+              ],
             ),
-            const SizedBox(height: 16),
-            
-            // Lista de Opciones
-            _buildProfileMenu(context, authService),
-            const SizedBox(height: 100), // Espacio para la barra inferior
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildUserHeader(BuildContext context) {
+  Widget _buildUserHeader(BuildContext context, String name, String email, String initials) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -77,9 +117,9 @@ class ProfileScreen extends StatelessWidget {
               CircleAvatar(
                 radius: 40,
                 backgroundColor: AppColors.accentGreen.withValues(alpha: 0.2),
-                child: const Text(
-                  "AA",
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.accentGreen),
+                child: Text(
+                  initials,
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.accentGreen),
                 ),
               ),
               Positioned(
@@ -98,13 +138,13 @@ class ProfileScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Andrés Álvarez",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                Text(
+                  name,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
-                const Text(
-                  "andres.alvarez@email.com",
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                Text(
+                  email,
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -134,7 +174,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusCards() {
+  Widget _buildStatusCards(String memberSince) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
@@ -144,7 +184,7 @@ class ProfileScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildStatusItem(Icons.calendar_today, "Miembro desde", "Mar 2024"),
+          _buildStatusItem(Icons.calendar_today, "Miembro desde", memberSince),
           _buildDivider(),
           _buildStatusItem(Icons.shield_outlined, "Seguridad", "Activa", valueColor: AppColors.accentGreen),
           _buildDivider(),
@@ -190,7 +230,6 @@ class ProfileScreen extends StatelessWidget {
           _buildMenuItem(Icons.notifications_none, "Notificaciones", "Gestiona tus alertas", Colors.purple),
           _buildMenuItem(Icons.credit_card, "Métodos de pago", "Administra tus tarjetas", Colors.orange),
           _buildMenuItem(Icons.cloud_download_outlined, "Exportar datos", "Descarga tu información", Colors.cyan),
-          // Botón de Cerrar Sesión
           ListTile(
             onTap: () async {
               await authService.signOut();
