@@ -22,81 +22,121 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      // Usamos extendBody para que el contenido pase por detrás si es necesario, 
+      // pero con HomeContent ajustado con padding inferior.
+      extendBody: true,
       body: SafeArea(
+        bottom: false,
         child: IndexedStack(
           index: _selectedIndex,
           children: _screens,
         ),
       ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.only(top: 10),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: Colors.blueAccent,
-          unselectedItemColor: AppColors.textSecondary,
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-          unselectedLabelStyle: const TextStyle(fontSize: 12),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_filled, size: 28),
-              label: "Inicio",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.shield_outlined, size: 28),
-              label: "Metas",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_rounded, size: 28),
-              label: "Estadísticas",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded, size: 28),
-              label: "Perfil",
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: Container(
-        height: 64,
-        width: 64,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [Colors.blueAccent, Colors.cyanAccent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blueAccent.withValues(alpha: 0.4),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: FloatingActionButton(
-          onPressed: () {},
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: const Icon(Icons.add, color: Colors.white, size: 32),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: _buildBottomNavBar(theme),
     );
   }
+
+  Widget _buildBottomNavBar(ThemeData theme) {
+    return Container(
+      height: 100,
+      padding: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.4 : 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNavItem(Icons.home_filled, "Inicio", 0),
+          _buildNavItem(Icons.shield_outlined, "Metas", 1),
+          _buildMiddleButton(theme),
+          _buildNavItem(Icons.bar_chart_rounded, "Estadísticas", 2),
+          _buildNavItem(Icons.person_rounded, "Perfil", 3),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, String label, int index) {
+    bool isSelected = _selectedIndex == index;
+    return InkWell(
+      onTap: () => setState(() => _selectedIndex = index),
+      child: SizedBox(
+        width: 70,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 26,
+              color: isSelected ? Colors.blueAccent : AppColors.textSecondary,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.blueAccent : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiddleButton(ThemeData theme) {
+    return CustomPaint(
+      painter: GradientPainter(),
+      child: Container(
+        width: 52,
+        height: 52,
+        margin: const EdgeInsets.all(2.5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: theme.colorScheme.surface,
+        ),
+        child: Icon(
+          Icons.add, 
+          color: theme.brightness == Brightness.dark ? Colors.white : Colors.black, 
+          size: 30
+        ),
+      ),
+    );
+  }
+}
+
+class GradientPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final paint = Paint()
+      ..shader = const LinearGradient(
+        colors: [Colors.indigoAccent, Colors.cyanAccent],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0;
+
+    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width / 2, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

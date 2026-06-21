@@ -5,7 +5,8 @@ import 'package:provider/provider.dart';
 import 'ui/screens/onboarding_screen.dart';
 import 'ui/screens/home_screen.dart';
 import 'services/auth_service.dart';
-import 'core/theme/colors.dart';
+import 'services/settings_provider.dart';
+import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +23,7 @@ void main() async {
     MultiProvider(
       providers: [
         Provider<AuthService>(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
       ],
       child: MyApp(isFirebaseReady: firebaseInitialized),
     ),
@@ -34,27 +36,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = Provider.of<SettingsProvider>(context);
+
     return MaterialApp(
       title: 'App Bank',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: AppColors.background,
-        primaryColor: AppColors.primary,
-        colorScheme: const ColorScheme.dark(
-          primary: AppColors.primary,
-          surface: AppColors.surface,
-          secondary: AppColors.secondary,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: AppColors.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-        ),
-      ),
+      themeMode: settings.themeMode,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
       home: AuthWrapper(isFirebaseReady: isFirebaseReady),
     );
   }
@@ -77,16 +66,16 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Si el usuario está autenticado, vamos directo al Home
         if (snapshot.connectionState == ConnectionState.active) {
           final User? user = snapshot.data;
           if (user == null) {
             return const OnboardingScreen();
           } else {
+            // Usamos una clave única para que HomeScreen no se recree de forma que pierda el estado 
+            // pero que responda al cambio de tema global.
             return const HomeScreen();
           }
         }
-        // Mientras carga el estado de la sesión
         return const Scaffold(
           body: Center(
             child: CircularProgressIndicator(),

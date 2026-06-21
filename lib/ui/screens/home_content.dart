@@ -9,6 +9,7 @@ class HomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final User? currentUser = FirebaseAuth.instance.currentUser;
+    final theme = Theme.of(context);
 
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
@@ -19,7 +20,6 @@ class HomeContent extends StatelessWidget {
         String userName = "Usuario";
         if (snapshot.hasData && snapshot.data!.exists) {
           userName = (snapshot.data!.data() as Map<String, dynamic>)['name'] ?? "Usuario";
-          // Tomar solo el primer nombre
           userName = userName.split(' ')[0];
         }
 
@@ -28,18 +28,19 @@ class HomeContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(userName),
+              _buildHeader(context, userName),
               const SizedBox(height: 24),
-              _buildMainBalanceCard(),
+              _buildMainBalanceCard(context),
               const SizedBox(height: 20),
-              _buildFinanceCategories(),
+              _buildFinanceCategories(context),
               const SizedBox(height: 24),
-              _buildMainGoalCard(),
+              _buildMainGoalCard(context),
               const SizedBox(height: 24),
-              _buildRecentActivityHeader(),
+              _buildRecentActivityHeader(context),
               const SizedBox(height: 16),
-              _buildRecentActivityList(),
-              const SizedBox(height: 100), // Espacio para la barra inferior
+              _buildRecentActivityList(context),
+              // Espacio extra al final para que el contenido no quede debajo de la barra
+              const SizedBox(height: 140), 
             ],
           ),
         );
@@ -47,7 +48,8 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(String name) {
+  Widget _buildHeader(BuildContext context, String name) {
+    final theme = Theme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -56,18 +58,18 @@ class HomeContent extends StatelessWidget {
           children: [
             Text(
               "¡Hola, $name! 👋",
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
-            const Text(
+            Text(
               "Aquí tienes tu resumen financiero.",
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 16),
             ),
           ],
         ),
         Stack(
           children: [
             IconButton(
-              icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 30),
+              icon: Icon(Icons.notifications_none_rounded, color: theme.iconTheme.color, size: 30),
               onPressed: () {},
             ),
             Positioned(
@@ -85,12 +87,13 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildMainBalanceCard() {
+  Widget _buildMainBalanceCard(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -98,17 +101,17 @@ class HomeContent extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text("Saldo total", style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+              Text("Saldo total", style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 14)),
               const SizedBox(width: 8),
-              const Icon(Icons.visibility_outlined, color: AppColors.textSecondary, size: 18),
+              Icon(Icons.visibility_outlined, color: theme.textTheme.bodyMedium?.color, size: 18),
               const Spacer(),
-              const Icon(Icons.arrow_forward_ios, color: AppColors.textSecondary, size: 14),
+              Icon(Icons.arrow_forward_ios, color: theme.textTheme.bodyMedium?.color, size: 14),
             ],
           ),
           const SizedBox(height: 12),
           const Text(
             "S/ 8,450.00",
-            style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -120,61 +123,64 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildFinanceCategories() {
+  Widget _buildFinanceCategories(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
         children: [
-          _buildCategoryItem(Icons.account_balance_wallet_outlined, "Ahorros", "S/ 5,000", Colors.green),
-          const Divider(color: AppColors.secondary, height: 1, indent: 60),
-          _buildCategoryItem(Icons.credit_card, "Gastos", "S/ 2,300", Colors.orange),
-          const Divider(color: AppColors.secondary, height: 1, indent: 60),
-          _buildCategoryItem(Icons.bar_chart_rounded, "Inversiones", "S/ 1,150.00", Colors.blue),
+          _buildCategoryItem(context, Icons.account_balance_wallet_outlined, "Ahorros", "S/ 5,000", Colors.green),
+          Divider(color: theme.dividerColor.withValues(alpha: 0.1), height: 1, indent: 60),
+          _buildCategoryItem(context, Icons.credit_card, "Gastos", "S/ 2,300", Colors.orange),
+          Divider(color: theme.dividerColor.withValues(alpha: 0.1), height: 1, indent: 60),
+          _buildCategoryItem(context, Icons.bar_chart_rounded, "Inversiones", "S/ 1,150.00", Colors.blue),
         ],
       ),
     );
   }
 
-  Widget _buildCategoryItem(IconData icon, String label, String amount, Color color) {
+  Widget _buildCategoryItem(BuildContext context, IconData icon, String label, String amount, Color color) {
+    final theme = Theme.of(context);
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
         child: Icon(icon, color: color, size: 24),
       ),
-      title: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(amount, style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+          Text(amount, style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 14)),
           const SizedBox(width: 8),
-          const Icon(Icons.arrow_forward_ios, color: AppColors.textSecondary, size: 14),
+          Icon(Icons.arrow_forward_ios, color: theme.textTheme.bodyMedium?.color, size: 14),
         ],
       ),
     );
   }
 
-  Widget _buildMainGoalCard() {
+  Widget _buildMainGoalCard(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Meta principal", style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+          Text("Meta principal", style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 14)),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Viaje", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-              const Text("S/ 10,000.00", style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+              const Text("Viaje", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text("S/ 10,000.00", style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 14)),
             ],
           ),
           const SizedBox(height: 16),
@@ -183,7 +189,7 @@ class HomeContent extends StatelessWidget {
               Container(
                 height: 12,
                 width: double.infinity,
-                decoration: BoxDecoration(color: AppColors.secondary, borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: theme.colorScheme.secondary, borderRadius: BorderRadius.circular(10)),
               ),
               FractionallySizedBox(
                 widthFactor: 0.8,
@@ -198,7 +204,7 @@ class HomeContent extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Faltan: S/ 2,000.00", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              Text("Faltan: S/ 2,000.00", style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 12)),
               const Text("80%", style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
@@ -207,44 +213,46 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentActivityHeader() {
+  Widget _buildRecentActivityHeader(BuildContext context) {
     return const Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text("Actividad reciente", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        Text("Actividad reciente", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         Text("Ver todo", style: TextStyle(color: Colors.blueAccent, fontSize: 14)),
       ],
     );
   }
 
-  Widget _buildRecentActivityList() {
+  Widget _buildRecentActivityList(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
         children: [
-          _buildActivityItem(Icons.verified_user_rounded, "Aporte a meta Viaje", "Hoy", "+S/ 100.00", Colors.greenAccent),
-          const Divider(color: AppColors.secondary, height: 1, indent: 60),
-          _buildActivityItem(Icons.shopping_cart_rounded, "Supermercado", "Ayer", "-S/ 45.00", Colors.redAccent),
-          const Divider(color: AppColors.secondary, height: 1, indent: 60),
-          _buildActivityItem(Icons.star_rounded, "Ahorro automático", "Ayer", "+S/ 20.00", Colors.greenAccent),
+          _buildActivityItem(context, Icons.verified_user_rounded, "Aporte a meta Viaje", "Hoy", "+S/ 100.00", Colors.greenAccent),
+          Divider(color: theme.dividerColor.withValues(alpha: 0.1), height: 1, indent: 60),
+          _buildActivityItem(context, Icons.shopping_cart_rounded, "Supermercado", "Ayer", "-S/ 45.00", Colors.redAccent),
+          Divider(color: theme.dividerColor.withValues(alpha: 0.1), height: 1, indent: 60),
+          _buildActivityItem(context, Icons.star_rounded, "Ahorro automático", "Ayer", "+S/ 20.00", Colors.greenAccent),
         ],
       ),
     );
   }
 
-  Widget _buildActivityItem(IconData icon, String title, String date, String amount, Color amountColor) {
+  Widget _buildActivityItem(BuildContext context, IconData icon, String title, String date, String amount, Color amountColor) {
+    final theme = Theme.of(context);
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: AppColors.secondary, borderRadius: BorderRadius.circular(14)),
-        child: Icon(icon, color: Colors.white70, size: 24),
+        decoration: BoxDecoration(color: theme.colorScheme.secondary, borderRadius: BorderRadius.circular(14)),
+        child: Icon(icon, color: theme.iconTheme.color?.withValues(alpha: 0.7), size: 24),
       ),
-      title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 15)),
-      subtitle: Text(date, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15)),
+      subtitle: Text(date, style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 12)),
       trailing: Text(
         amount,
         style: TextStyle(color: amountColor, fontWeight: FontWeight.bold, fontSize: 15),
