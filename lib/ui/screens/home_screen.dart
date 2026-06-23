@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import '../../core/theme/colors.dart';
 import 'profile_screen.dart';
 import 'home_content.dart';
+import 'goals_screen.dart';
+import 'statistics_screen.dart';
+import '../widgets/action_selector_sheet.dart';
+import '../widgets/register_saving_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,10 +19,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = [
     const HomeContent(),
-    const Center(child: Text("Metas", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
-    const Center(child: Text("Estadísticas", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
+    const GoalsScreen(),
+    const StatisticsScreen(),
     const ProfileScreen(),
   ];
+
+  void _showActionSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => ActionSelectorSheet(
+        onOptionSelected: (type) {
+          Navigator.pop(context);
+          _showRegisterForm(context, type);
+        },
+      ),
+    );
+  }
+
+  void _showRegisterForm(BuildContext context, String type) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => RegisterSavingSheet(type: type),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,20 +128,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMiddleButton(ThemeData theme) {
-    return CustomPaint(
-      painter: GradientPainter(),
-      child: Container(
-        width: 52,
-        height: 52,
-        margin: const EdgeInsets.all(2.5),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: theme.colorScheme.surface,
-        ),
-        child: Icon(
-          Icons.add, 
-          color: theme.brightness == Brightness.dark ? Colors.white : Colors.black, 
-          size: 30
+    return GestureDetector(
+      onTap: () => _showActionSelector(context),
+      child: CustomPaint(
+        painter: GradientPainter(),
+        child: Container(
+          width: 52,
+          height: 52,
+          margin: const EdgeInsets.all(2.5),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: theme.colorScheme.surface,
+          ),
+          child: Icon(
+            Icons.add, 
+            color: theme.brightness == Brightness.dark ? Colors.white : Colors.black, 
+            size: 30
+          ),
         ),
       ),
     );

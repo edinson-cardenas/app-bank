@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'ui/screens/onboarding_screen.dart';
 import 'ui/screens/home_screen.dart';
 import 'services/auth_service.dart';
+import 'services/database_service.dart';
 import 'services/settings_provider.dart';
 import 'core/theme/app_theme.dart';
 
@@ -23,6 +24,7 @@ void main() async {
     MultiProvider(
       providers: [
         Provider<AuthService>(create: (_) => AuthService()),
+        Provider<DatabaseService>(create: (_) => DatabaseService()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
       ],
       child: MyApp(isFirebaseReady: firebaseInitialized),

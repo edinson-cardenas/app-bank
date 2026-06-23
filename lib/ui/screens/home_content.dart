@@ -1,26 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
+import '../../services/database_service.dart';
 
 class HomeContent extends StatelessWidget {
   const HomeContent({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final db = Provider.of<DatabaseService>(context);
     final theme = Theme.of(context);
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser?.uid)
-          .snapshots(),
+      stream: db.userData,
       builder: (context, snapshot) {
         String userName = "Usuario";
+        double balance = 0.0;
+        double savings = 0.0;
+        double expenses = 0.0;
+        double investments = 0.0;
+
         if (snapshot.hasData && snapshot.data!.exists) {
-          userName = (snapshot.data!.data() as Map<String, dynamic>)['name'] ?? "Usuario";
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+          userName = data['name'] ?? "Usuario";
           userName = userName.split(' ')[0];
+          balance = (data['balance'] ?? 0.0).toDouble();
+          savings = (data['totalSavings'] ?? 0.0).toDouble();
+          expenses = (data['totalExpenses'] ?? 0.0).toDouble();
+          investments = (data['totalInvestments'] ?? 0.0).toDouble();
         }
 
         return SingleChildScrollView(
@@ -30,15 +39,15 @@ class HomeContent extends StatelessWidget {
             children: [
               _buildHeader(context, userName),
               const SizedBox(height: 24),
-              _buildMainBalanceCard(context),
+              _buildMainBalanceCard(context, balance),
               const SizedBox(height: 20),
-              _buildFinanceCategories(context),
+              _buildFinanceCategories(context, savings, expenses, investments),
               const SizedBox(height: 24),
               _buildMainGoalCard(context),
               const SizedBox(height: 24),
               _buildRecentActivityHeader(context),
               const SizedBox(height: 16),
-              _buildRecentActivityList(context),
+              _buildRecentActivityList(context, db),
               // Espacio extra al final para que el contenido no quede debajo de la barra
               const SizedBox(height: 140), 
             ],
@@ -87,7 +96,7 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildMainBalanceCard(BuildContext context) {
+  Widget _buildMainBalanceCard(BuildContext context, double balance) {
     final theme = Theme.of(context);
     return Container(
       width: double.infinity,
@@ -109,9 +118,9 @@ class HomeContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            "S/ 8,450.00",
-            style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+          Text(
+            "S/ ${balance.toStringAsFixed(2)}",
+            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -123,7 +132,7 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildFinanceCategories(BuildContext context) {
+  Widget _buildFinanceCategories(BuildContext context, double savings, double expenses, double investments) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
@@ -133,11 +142,11 @@ class HomeContent extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildCategoryItem(context, Icons.account_balance_wallet_outlined, "Ahorros", "S/ 5,000", Colors.green),
+          _buildCategoryItem(context, Icons.account_balance_wallet_outlined, "Ahorros", "S/ ${savings.toStringAsFixed(2)}", Colors.green),
           Divider(color: theme.dividerColor.withValues(alpha: 0.1), height: 1, indent: 60),
-          _buildCategoryItem(context, Icons.credit_card, "Gastos", "S/ 2,300", Colors.orange),
+          _buildCategoryItem(context, Icons.credit_card, "Gastos", "S/ ${expenses.toStringAsFixed(2)}", Colors.orange),
           Divider(color: theme.dividerColor.withValues(alpha: 0.1), height: 1, indent: 60),
-          _buildCategoryItem(context, Icons.bar_chart_rounded, "Inversiones", "S/ 1,150.00", Colors.blue),
+          _buildCategoryItem(context, Icons.bar_chart_rounded, "Inversiones", "S/ ${investments.toStringAsFixed(2)}", Colors.blue),
         ],
       ),
     );
@@ -223,23 +232,70 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentActivityList(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: Column(
-        children: [
-          _buildActivityItem(context, Icons.verified_user_rounded, "Aporte a meta Viaje", "Hoy", "+S/ 100.00", Colors.greenAccent),
-          Divider(color: theme.dividerColor.withValues(alpha: 0.1), height: 1, indent: 60),
-          _buildActivityItem(context, Icons.shopping_cart_rounded, "Supermercado", "Ayer", "-S/ 45.00", Colors.redAccent),
-          Divider(color: theme.dividerColor.withValues(alpha: 0.1), height: 1, indent: 60),
-          _buildActivityItem(context, Icons.star_rounded, "Ahorro automático", "Ayer", "+S/ 20.00", Colors.greenAccent),
-        ],
-      ),
+  Widget _buildRecentActivityList(BuildContext context, DatabaseService db) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: db.transactions,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(24),
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: const Center(child: Text("No hay actividad reciente")),
+          );
+        }
+
+        final transactions = snapshot.data!.docs.take(5).toList();
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Column(
+            children: transactions.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final type = data['type'];
+              final amount = data['amount'];
+              final category = data['category'];
+              final date = (data['date'] as Timestamp).toDate();
+              
+              Color amountColor = Colors.greenAccent;
+              String prefix = "+";
+              IconData icon = Icons.monetization_on_outlined;
+
+              if (type == 'gasto') {
+                amountColor = Colors.redAccent;
+                prefix = "-";
+                icon = Icons.shopping_cart_rounded;
+              } else if (type == 'inversion') {
+                amountColor = Colors.blueAccent;
+                prefix = "+";
+                icon = Icons.bar_chart_rounded;
+              }
+
+              return Column(
+                children: [
+                  _buildActivityItem(
+                    context, 
+                    icon, 
+                    category, 
+                    "${date.day}/${date.month}/${date.year}", 
+                    "$prefix S/ ${amount.toStringAsFixed(2)}", 
+                    amountColor
+                  ),
+                  if (doc != transactions.last)
+                    Divider(color: Theme.of(context).dividerColor.withValues(alpha: 0.1), height: 1, indent: 60),
+                ],
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 
