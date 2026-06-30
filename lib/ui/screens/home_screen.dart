@@ -50,10 +50,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      // Usamos extendBody para que el contenido pase por detrás si es necesario, 
+      // Usamos extendBody para que el contenido pase por detrás si es necesario,
       // pero con HomeContent ajustado con padding inferior.
       extendBody: true,
       body: SafeArea(
@@ -68,32 +68,36 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBottomNavBar(ThemeData theme) {
-    return Container(
-      height: 100,
-      padding: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.4 : 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
+    return SafeArea(
+      top: false,
+      child: Container(
+        height: 80,
+        padding: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem(Icons.home_filled, "Inicio", 0),
-          _buildNavItem(Icons.shield_outlined, "Metas", 1),
-          _buildMiddleButton(theme),
-          _buildNavItem(Icons.bar_chart_rounded, "Estadísticas", 2),
-          _buildNavItem(Icons.person_rounded, "Perfil", 3),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.4 : 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildNavItem(Icons.home_filled, "Inicio", 0),
+            _buildNavItem(Icons.shield_outlined, "Metas", 1),
+            _buildMiddleButton(theme),
+            _buildNavItem(Icons.bar_chart_rounded, "Estadísticas", 2),
+            _buildNavItem(Icons.person_rounded, "Perfil", 3),
+          ],
+        ),
       ),
     );
   }
@@ -140,11 +144,11 @@ class _HomeScreenState extends State<HomeScreen> {
             shape: BoxShape.circle,
             color: theme.colorScheme.surface,
           ),
-          child: Icon(
-            Icons.add, 
-            color: theme.brightness == Brightness.dark ? Colors.white : Colors.black, 
-            size: 30
-          ),
+          child: Icon(Icons.add,
+              color: theme.brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black,
+              size: 30),
         ),
       ),
     );
@@ -164,7 +168,8 @@ class GradientPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.0;
 
-    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width / 2, paint);
+    canvas.drawCircle(
+        Offset(size.width / 2, size.height / 2), size.width / 2, paint);
   }
 
   @override

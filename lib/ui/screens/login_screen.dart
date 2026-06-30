@@ -95,7 +95,23 @@ class _LoginScreenState extends State<LoginScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {},
+                  onPressed: () async {
+                    final email = _emailController.text.trim();
+                    if (email.isEmpty) {
+                      _showError("Ingresa tu correo para enviarte el enlace de recuperación");
+                      return;
+                    }
+                    try {
+                      await authService.sendPasswordReset(email);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Te enviamos un enlace de recuperación a $email")),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) _showError(e.toString());
+                    }
+                  },
                   child: const Text("¿Olvidaste tu contraseña?", style: TextStyle(color: AppColors.primary)),
                 ),
               ),

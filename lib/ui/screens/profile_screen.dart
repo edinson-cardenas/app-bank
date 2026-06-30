@@ -7,7 +7,8 @@ import '../../services/auth_service.dart';
 import '../../services/settings_provider.dart';
 import 'welcome_screen.dart';
 import 'edit_profile_screen.dart';
-import 'support_chat_screen.dart';
+import 'security_screen.dart';
+import 'notifications_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -175,20 +176,20 @@ class ProfileScreen extends StatelessWidget {
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen())),
                   ),
                   _buildMenuItem(
-                    context, 
-                    Icons.lock_outline, 
-                    "Seguridad", 
-                    "Cambia tu contraseña y más", 
+                    context,
+                    Icons.lock_outline,
+                    "Seguridad",
+                    "Cambia tu contraseña y más",
                     Colors.blue,
-                    onTap: () => _showFeatureUnderDevelopment(context, "Seguridad"),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SecurityScreen())),
                   ),
                   _buildMenuItem(
-                    context, 
-                    Icons.notifications_none, 
-                    "Notificaciones", 
-                    "Gestiona tus alertas y preferencias", 
+                    context,
+                    Icons.notifications_none,
+                    "Notificaciones",
+                    "Gestiona tus alertas y preferencias",
                     Colors.purple,
-                    onTap: () => _showFeatureUnderDevelopment(context, "Notificaciones"),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen())),
                   ),
                   _buildMenuItem(
                     context, 
@@ -205,14 +206,6 @@ class ProfileScreen extends StatelessWidget {
                     "Descarga tu información financiera", 
                     Colors.cyan,
                     onTap: () => _showFeatureUnderDevelopment(context, "Exportar datos"),
-                  ),
-                  _buildMenuItem(
-                    context, 
-                    Icons.help_outline, 
-                    "Ayuda y soporte", 
-                    "Centro de ayuda y contacto", 
-                    Colors.blueAccent,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SupportChatScreen())),
                   ),
                 ]),
                 const SizedBox(height: 32),

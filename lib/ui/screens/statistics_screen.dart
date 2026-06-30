@@ -3,7 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../services/database_service.dart';
-import '../../core/theme/colors.dart';
+import '../../services/settings_provider.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -15,10 +15,54 @@ class StatisticsScreen extends StatefulWidget {
 class _StatisticsScreenState extends State<StatisticsScreen> {
   String _selectedFilter = 'Semanal';
   final List<String> _filters = ['Diario', 'Semanal', 'Mensual', 'Anual'];
+  DateTimeRange? _customRange;
+
+  DateTimeRange _rangeForFilter(String filter) {
+    final now = DateTime.now();
+    switch (filter) {
+      case 'Diario':
+        final start = DateTime(now.year, now.month, now.day);
+        return DateTimeRange(start: start, end: now);
+      case 'Mensual':
+        final start = DateTime(now.year, now.month, 1);
+        return DateTimeRange(start: start, end: now);
+      case 'Anual':
+        final start = DateTime(now.year, 1, 1);
+        return DateTimeRange(start: start, end: now);
+      case 'Semanal':
+      default:
+        final start = now.subtract(const Duration(days: 7));
+        return DateTimeRange(start: start, end: now);
+    }
+  }
+
+  DateTimeRange get _activeRange => _customRange ?? _rangeForFilter(_selectedFilter);
+
+  List<QueryDocumentSnapshot> _filterByRange(List<QueryDocumentSnapshot> docs, DateTimeRange range) {
+    return docs.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      final date = (data['date'] as Timestamp?)?.toDate();
+      if (date == null) return false;
+      return !date.isBefore(range.start) && !date.isAfter(range.end.add(const Duration(days: 1)));
+    }).toList();
+  }
+
+  Future<void> _pickDateRange(BuildContext context) async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      initialDateRange: _customRange,
+    );
+    if (picked != null) {
+      setState(() => _customRange = picked);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final db = Provider.of<DatabaseService>(context);
+    final settings = Provider.of<SettingsProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -35,8 +79,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
-              icon: const Icon(Icons.calendar_month_outlined),
-              onPressed: () {},
+              icon: Icon(_customRange != null ? Icons.event_available : Icons.calendar_month_outlined),
+              tooltip: "Elegir rango de fechas",
+              onPressed: () => _pickDateRange(context),
             ),
           ),
         ],
@@ -48,9 +93,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final transactions = snapshot.data!.docs;
-          
-          if (transactions.isEmpty) {
+          final allDocs = snapshot.data!.docs;
+
+          if (allDocs.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -71,18 +116,50 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               ),
             );
           }
-          
+
+          final range = _activeRange;
+          final filteredDocs = _filterByRange(allDocs, range);
+
+          if (filteredDocs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildTimeFilter(),
+                  const SizedBox(height: 40),
+                  Icon(Icons.filter_alt_off_outlined, size: 60, color: Colors.grey.withValues(alpha: 0.5)),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "No hay movimientos en este periodo",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Baseline (saldo neto antes del periodo) para calcular el % de crecimiento real.
+          double baseline = 0;
+          for (final doc in allDocs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final date = (data['date'] as Timestamp?)?.toDate();
+            if (date == null || !date.isBefore(range.start)) continue;
+            final amount = (data['amount'] ?? 0).toDouble();
+            final type = data['type'];
+            baseline += (type == 'gasto') ? -amount : amount;
+          }
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
                 _buildTimeFilter(),
                 const SizedBox(height: 24),
-                _buildSavingsBarChart(transactions, isDark),
+                _buildSavingsBarChart(filteredDocs, isDark, settings),
                 const SizedBox(height: 20),
-                _buildBalanceLineChart(transactions, isDark),
+                _buildBalanceLineChart(filteredDocs, isDark, baseline),
                 const SizedBox(height: 20),
-                _buildExpensesDonutChart(transactions, isDark),
+                _buildExpensesDonutChart(filteredDocs, isDark, settings),
                 const SizedBox(height: 120),
               ],
             ),
@@ -97,14 +174,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: _filters.map((filter) {
-          bool isSelected = _selectedFilter == filter;
+          bool isSelected = _customRange == null && _selectedFilter == filter;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
               label: Text(filter),
               selected: isSelected,
               onSelected: (selected) {
-                if (selected) setState(() => _selectedFilter = filter);
+                if (selected) {
+                  setState(() {
+                    _selectedFilter = filter;
+                    _customRange = null;
+                  });
+                }
               },
               selectedColor: Colors.blueAccent.withValues(alpha: 0.2),
               labelStyle: TextStyle(
@@ -121,16 +203,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildSavingsBarChart(List<QueryDocumentSnapshot> docs, bool isDark) {
-    double totalWeekSavings = 0;
+  Widget _buildSavingsBarChart(List<QueryDocumentSnapshot> docs, bool isDark, SettingsProvider settings) {
+    double totalSavings = 0;
     List<double> dailySavings = List.filled(7, 0.0);
-    
+
     for (var doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
       if (data['type'] == 'ahorro') {
         double amount = (data['amount'] ?? 0).toDouble();
-        totalWeekSavings += amount;
-        
+        totalSavings += amount;
+
         if (data['date'] != null) {
           DateTime date = (data['date'] as Timestamp).toDate();
           int weekday = date.weekday - 1; // Mon=0, Sun=6
@@ -163,12 +245,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   color: Colors.blueAccent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(_selectedFilter, style: const TextStyle(color: Colors.blueAccent, fontSize: 12)),
+                child: Text(_customRange != null ? "Personalizado" : _selectedFilter, style: const TextStyle(color: Colors.blueAccent, fontSize: 12)),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text("S/ ${totalWeekSavings.toStringAsFixed(2)}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(settings.formatAmount(totalSavings), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
           SizedBox(
             height: 150,
@@ -198,9 +280,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 gridData: const FlGridData(show: false),
                 borderData: FlBorderData(show: false),
                 barGroups: List.generate(7, (i) => _makeGroupData(
-                  i, 
-                  dailySavings[i], 
-                  dailySavings[i] == maxSaving && maxSaving > 0 ? Colors.blueAccent : Colors.blueAccent.withValues(alpha: 0.3)
+                  i,
+                  dailySavings[i],
+                  dailySavings[i] == maxSaving && maxSaving > 0 ? Colors.blueAccent : Colors.blueAccent.withValues(alpha: 0.3),
                 )),
               ),
             ),
@@ -224,30 +306,36 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildBalanceLineChart(List<QueryDocumentSnapshot> docs, bool isDark) {
+  Widget _buildBalanceLineChart(List<QueryDocumentSnapshot> docs, bool isDark, double baseline) {
     List<FlSpot> spots = [];
-    // If no data, show a flat line at 0
-    if (docs.isEmpty) {
-      spots = [const FlSpot(0, 0), const FlSpot(8, 0)];
-    } else {
-      // Very simple logic to show some spots based on transactions
-      // In a real app, you would group by date and calculate cumulative balance
-      double cumulative = 0;
-      int index = 0;
-      // Take last 5 transactions to show a trend
-      final recentDocs = docs.reversed.take(5).toList();
-      for (var doc in recentDocs) {
-        final data = doc.data() as Map<String, dynamic>;
-        double amount = (data['amount'] ?? 0).toDouble();
-        if (data['type'] == 'gasto') {
-          cumulative -= amount;
-        } else {
-          cumulative += amount;
-        }
-        spots.add(FlSpot(index.toDouble() * 2, cumulative / 1000)); // Normalized for the chart height
-        index++;
-      }
+    double periodNet = 0;
+    double cumulative = baseline;
+    int index = 0;
+
+    final sortedDocs = [...docs]..sort((a, b) {
+      final dateA = ((a.data() as Map<String, dynamic>)['date'] as Timestamp?)?.toDate() ?? DateTime(2000);
+      final dateB = ((b.data() as Map<String, dynamic>)['date'] as Timestamp?)?.toDate() ?? DateTime(2000);
+      return dateA.compareTo(dateB);
+    });
+
+    spots.add(FlSpot(0, cumulative / 1000));
+    for (var doc in sortedDocs) {
+      final data = doc.data() as Map<String, dynamic>;
+      double amount = (data['amount'] ?? 0).toDouble();
+      double change = (data['type'] == 'gasto') ? -amount : amount;
+      cumulative += change;
+      periodNet += change;
+      index++;
+      spots.add(FlSpot(index.toDouble(), cumulative / 1000));
     }
+
+    double growthPercent = 0;
+    if (baseline.abs() > 0.01) {
+      growthPercent = (periodNet / baseline.abs()) * 100;
+    } else if (periodNet != 0) {
+      growthPercent = periodNet > 0 ? 100 : -100;
+    }
+    final isPositive = growthPercent >= 0;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -262,7 +350,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text("Crecimiento del saldo", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const Text("▲ 0% este mes", style: TextStyle(color: Colors.greenAccent, fontSize: 12)),
+              Text(
+                "${isPositive ? '▲' : '▼'} ${growthPercent.abs().toStringAsFixed(1)}% en el periodo",
+                style: TextStyle(color: isPositive ? Colors.greenAccent : Colors.redAccent, fontSize: 12),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -271,22 +362,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             child: LineChart(
               LineChartData(
                 gridData: const FlGridData(show: false),
-                titlesData: FlTitlesData(
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        const labels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4', 'Hoy'];
-                        if (value % 2 == 0 && value.toInt() ~/ 2 < labels.length) {
-                          return Text(labels[value.toInt() ~/ 2], style: const TextStyle(color: Colors.grey, fontSize: 10));
-                        }
-                        return const SizedBox();
-                      },
-                    ),
-                  ),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                titlesData: const FlTitlesData(
+                  bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
@@ -314,7 +394,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildExpensesDonutChart(List<QueryDocumentSnapshot> docs, bool isDark) {
+  Widget _buildExpensesDonutChart(List<QueryDocumentSnapshot> docs, bool isDark, SettingsProvider settings) {
     double totalExpenses = 0;
     // Map to store category totals
     Map<String, double> categoryTotals = {};
@@ -337,7 +417,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           color: isDark ? const Color(0xFF151921) : Colors.white,
           borderRadius: BorderRadius.circular(28),
         ),
-        child: const Center(child: Text("No hay gastos registrados aún")),
+        child: const Center(child: Text("No hay gastos registrados en este periodo")),
       );
     }
 
@@ -356,7 +436,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     categoryTotals.forEach((category, amount) {
       double percentage = (amount / totalExpenses) * 100;
       Color color = colors[colorIndex % colors.length];
-      
+
       sections.add(PieChartSectionData(
         color: color,
         value: amount,
@@ -387,7 +467,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   color: Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(_selectedFilter, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                child: Text(_customRange != null ? "Personalizado" : _selectedFilter, style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ),
             ],
           ),

@@ -2,15 +2,56 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../services/database_service.dart';
-import '../../core/theme/colors.dart';
+import '../../core/utils/goal_style.dart';
+import '../widgets/create_goal_sheet.dart';
+import '../widgets/add_contribution_sheet.dart';
 
 class GoalsScreen extends StatelessWidget {
   const GoalsScreen({super.key});
 
+  void _showCreateGoalSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => const CreateGoalSheet(),
+    );
+  }
+
+  void _showAddContributionSheet(BuildContext context, String goalId, String title, String currency) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => AddContributionSheet(goalId: goalId, goalTitle: title, currency: currency),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, String goalId, String title) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        title: const Text("Eliminar meta"),
+        content: Text("¿Seguro que deseas eliminar \"$title\"? Esta acción no se puede deshacer."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancelar")),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Eliminar", style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await Provider.of<DatabaseService>(context, listen: false).deleteGoal(goalId);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final db = Provider.of<DatabaseService>(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -19,21 +60,35 @@ class GoalsScreen extends StatelessWidget {
         title: const Text("Mis metas"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_horiz),
-            onPressed: () {},
+            icon: const Icon(Icons.add),
+            tooltip: "Nueva meta",
+            onPressed: () => _showCreateGoalSheet(context),
           ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: Provider.of<DatabaseService>(context).transactions,
+        stream: db.goals,
         builder: (context, snapshot) {
-          // Por ahora, como no hay colección de metas separada, 
-          // mostramos un mensaje vacío si no hay transacciones.
-          // En una versión futura, esto leería de la colección 'goals'.
-          
-          bool hasGoals = false; // Cambiar esto cuando se implemente la colección de metas
-          
-          if (!hasGoals) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Text(
+                  "No se pudieron cargar tus metas. Verifica las reglas de Firestore o tu conexión.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            );
+          }
+
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final docs = snapshot.data!.docs;
+
+          if (docs.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -46,7 +101,7 @@ class GoalsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    "Pulsa el botón + para registrar un ahorro.",
+                    "Pulsa el botón + para crear tu primera meta.",
                     style: TextStyle(color: Colors.grey),
                   ),
                 ],
@@ -58,26 +113,11 @@ class GoalsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                _buildGoalCard(
-                  context: context,
-                  title: "Casa",
-                  icon: Icons.home,
-                  percentage: 45,
-                  current: 22500,
-                  target: 50000,
-                  color: Colors.green,
-                ),
-                const SizedBox(height: 20),
-                _buildGoalCard(
-                  context: context,
-                  title: "Viaje",
-                  icon: Icons.airplanemode_active,
-                  percentage: 80,
-                  current: 8000,
-                  target: 10000,
-                  color: Colors.blueAccent,
-                ),
-                const SizedBox(height: 120),
+                for (final doc in docs) ...[
+                  _buildGoalCard(context, doc),
+                  const SizedBox(height: 20),
+                ],
+                const SizedBox(height: 100),
               ],
             ),
           );
@@ -86,17 +126,20 @@ class GoalsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGoalCard({
-    required BuildContext context,
-    required String title,
-    required IconData icon,
-    required int percentage,
-    required double current,
-    required double target,
-    required Color color,
-  }) {
+  Widget _buildGoalCard(BuildContext context, QueryDocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final String title = data['title'] ?? 'Meta';
+    final String category = data['category'] ?? 'Otros';
+    final double current = (data['currentAmount'] ?? 0).toDouble();
+    final double target = (data['targetAmount'] ?? 0).toDouble();
+    final String currency = data['currency'] ?? 'PEN';
+    final currencySymbol = currency == 'USD' ? '\$' : 'S/';
+    final int percentage = target > 0 ? ((current / target) * 100).clamp(0, 100).round() : 0;
+
+    final (icon, color) = goalIconAndColor(category);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -117,18 +160,24 @@ class GoalsScreen extends StatelessWidget {
                 child: Icon(icon, color: isDark ? Colors.white70 : Colors.black54),
               ),
               const SizedBox(width: 16),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
               Text(
                 "$percentage%",
                 style: TextStyle(color: color, fontWeight: FontWeight.bold),
               ),
+              IconButton(
+                icon: Icon(Icons.delete_outline, color: theme.textTheme.bodyMedium?.color, size: 20),
+                onPressed: () => _confirmDelete(context, doc.id, title),
+              ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           Stack(
             children: [
               Container(
@@ -155,7 +204,7 @@ class GoalsScreen extends StatelessWidget {
           Row(
             children: [
               Text(
-                "S/ ${current.toStringAsFixed(2)} de S/ ${target.toStringAsFixed(2)}",
+                "$currencySymbol ${current.toStringAsFixed(2)} de $currencySymbol ${target.toStringAsFixed(2)}",
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark ? Colors.white60 : Colors.black54,
@@ -167,7 +216,7 @@ class GoalsScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: () => _showAddContributionSheet(context, doc.id, title, currency),
               style: ElevatedButton.styleFrom(
                 backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
                 foregroundColor: isDark ? Colors.white : Colors.black,
