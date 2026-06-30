@@ -6,9 +6,17 @@ import '../../core/theme/colors.dart';
 import '../../services/auth_service.dart';
 import '../../services/settings_provider.dart';
 import 'welcome_screen.dart';
+import 'edit_profile_screen.dart';
+import 'support_chat_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
+
+  void _showFeatureUnderDevelopment(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("La función '$feature' estará disponible próximamente")),
+    );
+  }
 
   void _showThemeDialog(BuildContext context, SettingsProvider settings) {
     showDialog(
@@ -149,12 +157,54 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 _buildSectionContainer(context, [
-                  _buildMenuItem(context, Icons.person_outline, "Información personal", "Edita tus datos personales", Colors.green),
-                  _buildMenuItem(context, Icons.lock_outline, "Seguridad", "Cambia tu contraseña y más", Colors.blue),
-                  _buildMenuItem(context, Icons.notifications_none, "Notificaciones", "Gestiona tus alertas y preferencias", Colors.purple),
-                  _buildMenuItem(context, Icons.credit_card, "Métodos de pago", "Administra tus tarjetas y cuentas", Colors.orange),
-                  _buildMenuItem(context, Icons.cloud_download_outlined, "Exportar datos", "Descarga tu información financiera", Colors.cyan),
-                  _buildMenuItem(context, Icons.help_outline, "Ayuda y soporte", "Centro de ayuda y contacto", Colors.blueAccent),
+                  _buildMenuItem(
+                    context, 
+                    Icons.person_outline, 
+                    "Información personal", 
+                    "Edita tus datos personales", 
+                    Colors.green,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen())),
+                  ),
+                  _buildMenuItem(
+                    context, 
+                    Icons.lock_outline, 
+                    "Seguridad", 
+                    "Cambia tu contraseña y más", 
+                    Colors.blue,
+                    onTap: () => _showFeatureUnderDevelopment(context, "Seguridad"),
+                  ),
+                  _buildMenuItem(
+                    context, 
+                    Icons.notifications_none, 
+                    "Notificaciones", 
+                    "Gestiona tus alertas y preferencias", 
+                    Colors.purple,
+                    onTap: () => _showFeatureUnderDevelopment(context, "Notificaciones"),
+                  ),
+                  _buildMenuItem(
+                    context, 
+                    Icons.credit_card, 
+                    "Métodos de pago", 
+                    "Administra tus tarjetas y cuentas", 
+                    Colors.orange,
+                    onTap: () => _showFeatureUnderDevelopment(context, "Métodos de pago"),
+                  ),
+                  _buildMenuItem(
+                    context, 
+                    Icons.cloud_download_outlined, 
+                    "Exportar datos", 
+                    "Descarga tu información financiera", 
+                    Colors.cyan,
+                    onTap: () => _showFeatureUnderDevelopment(context, "Exportar datos"),
+                  ),
+                  _buildMenuItem(
+                    context, 
+                    Icons.help_outline, 
+                    "Ayuda y soporte", 
+                    "Centro de ayuda y contacto", 
+                    Colors.blueAccent,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SupportChatScreen())),
+                  ),
                 ]),
                 const SizedBox(height: 32),
                 Text(
@@ -345,7 +395,7 @@ class ProfileScreen extends StatelessWidget {
     return Container(height: 40, width: 1, color: Theme.of(context).dividerColor);
   }
 
-  Widget _buildMenuItem(BuildContext context, IconData icon, String title, String subtitle, Color iconColor) {
+  Widget _buildMenuItem(BuildContext context, IconData icon, String title, String subtitle, Color iconColor, {VoidCallback? onTap}) {
     final theme = Theme.of(context);
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -357,7 +407,7 @@ class ProfileScreen extends StatelessWidget {
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
       subtitle: Text(subtitle, style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 12)),
       trailing: Icon(Icons.arrow_forward_ios, color: theme.textTheme.bodyMedium?.color, size: 14),
-      onTap: () {},
+      onTap: onTap,
     );
   }
 
